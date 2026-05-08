@@ -1,0 +1,35 @@
+# Data
+data/raw/
+data/processed/
+
+# Submissions
+submissions/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Models / artifacts
+*.pkl
+*.joblib
+*.h5
+mlruns/
+optuna_studies/
+catboost_info/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Reports build artifacts
+reports/figures/

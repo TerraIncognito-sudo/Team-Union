@@ -1,0 +1,58 @@
+[
+  {
+    "name": "d6_lr10_l2_3",
+    "f1_3fold": 0.8497135844514556,
+    "learning_rate": 0.1,
+    "depth": 6,
+    "l2_leaf_reg": 3.0
+  },
+  {
+    "name": "d6_lr05_l2_3",
+    "f1_3fold": 0.8471256074173108,
+    "learning_rate": 0.05,
+    "depth": 6,
+    "l2_leaf_reg": 3.0
+  },
+  {
+    "name": "d6_lr08_l2_3",
+    "f1_3fold": 0.8469918405310009,
+    "learning_rate": 0.08,
+    "depth": 6,
+    "l2_leaf_reg": 3.0
+  },
+  {
+    "name": "d6_lr05_l2_7",
+    "f1_3fold": 0.846988307337313,
+    "learning_rate": 0.05,
+    "depth": 6,
+    "l2_leaf_reg": 7.0
+  },
+  {
+    "name": "d5_lr05_l2_3",
+    "f1_3fold": 0.8461299750811663,
+    "learning_rate": 0.05,
+    "depth": 5,
+    "l2_leaf_reg": 3.0
+  },
+  {
+    "name": "d7_lr05_l2_3",
+    "f1_3fold": 0.8461272163844648,
+    "learning_rate": 0.05,
+    "depth": 7,
+    "l2_leaf_reg": 3.0
+  },
+  {
+    "name": "d6_lr05_l2_5",
+    "f1_3fold": 0.8439696182659037,
+    "learning_rate": 0.05,
+    "depth": 6,
+    "l2_leaf_reg": 5.0
+  },
+  {
+    "name": "d6_lr03_l2_3",
+    "f1_3fold": 0.8426780968234618,
+    "learning_rate": 0.03,
+    "depth": 6,
+    "l2_leaf_reg": 3.0
+  }
+]

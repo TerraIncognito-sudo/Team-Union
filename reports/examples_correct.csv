@@ -1,0 +1,4 @@
+GuestID,Churned,pred,proba,AllInclusive,Region,PackageType,PromoCode,Age,VIP,Dining,TotalSpend,SurveyScore
+166287,1,1,0.9998153129902685,1.0,Europe,Adventure,,13.0,,0.0,0.0,4
+552514,1,1,0.9997713594125407,1.0,Europe,Adventure,,15.0,0.0,0.0,187916.6385546276,5
+931435,1,1,0.9997078776465089,1.0,Europe,Adventure,,46.0,0.0,0.0,0.0,3
