@@ -53,3 +53,6 @@ python -m ipykernel install --user --name team-union
 ## Submission format
 
 CSV with columns `GuestID,Churned` — see `data/raw/sample_submission.csv`.
+
+
+Hi everyone
