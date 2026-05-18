@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Figure Viewer</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #fafafa;
+    color: #222;
+  }
+  header { padding-left: 20px; padding-right: 20px; }
+  header {
+    position: sticky;
+    top: 0;
+    background: #fafafa;
+    padding: 12px 0;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+    z-index: 10;
+  }
+  header label {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #2563eb;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  header label:hover { background: #1d4ed8; }
+  header input { display: none; }
+  #status { margin-left: 12px; color: #666; }
+  header select {
+    margin-left: 12px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: white;
+    font-size: 14px;
+  }
+  header button {
+    margin-left: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  header button:hover:not(:disabled) { background: #f3f4f6; }
+  header button:disabled { opacity: 0.5; cursor: not-allowed; }
+  header button.armed {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+  }
+  header button.armed:hover:not(:disabled) { background: #1d4ed8; }
+  body.sizing #gallery .figure { cursor: crosshair; }
+  #gallery {
+    display: grid;
+    gap: 0;
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+    width: 100%;
+  }
+  .figure {
+    width: 100%;
+    margin: 0;
+    background: white;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 0;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.1s, background 0.1s;
+    grid-column: span var(--col-span, 1);
+    grid-row: span var(--row-span, 1);
+  }
+  .figure:hover { border-color: #bbb; }
+  .figure.dragging { opacity: 0.4; }
+  .figure.drop-before { box-shadow: inset 0 4px 0 0 #2563eb; }
+  .figure.drop-after { box-shadow: inset 0 -4px 0 0 #2563eb; }
+  .figure.selected {
+    border-color: #2563eb;
+    background: #eff6ff;
+  }
+  .figure.selected::before {
+    content: "✓";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    background: #2563eb;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .figure .caption {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #555;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    word-break: break-all;
+  }
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+  }
+  #lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #lightbox-close:hover { background: rgba(255, 255, 255, 0.3); }
+</style>
+</head>
+<body>
+<header>
+  <label for="picker">Choose folder</label>
+  <input id="picker" type="file" webkitdirectory directory multiple>
+  <select id="cols" aria-label="Columns">
+    <option value="1">1 column</option>
+    <option value="2">2 columns</option>
+    <option value="3">3 columns</option>
+  </select>
+  <button id="highlight" disabled>Highlight</button>
+  <button id="deselect" disabled>Deselect all</button>
+  <button id="refresh" disabled>Refresh</button>
+  <button class="size-btn" data-size="col+">+Column</button>
+  <button class="size-btn" data-size="col-">−Column</button>
+  <button class="size-btn" data-size="row+">+Row</button>
+  <button class="size-btn" data-size="row-">−Row</button>
+  <span id="status">No folder selected</span>
+</header>
+<div id="gallery"></div>
+<div id="lightbox">
+  <button id="lightbox-close" aria-label="Close">×</button>
+  <img id="lightbox-img" alt="">
+</div>
+
+<script>
+  const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|tiff?|heic)$/i;
+
+  const picker = document.getElementById('picker');
+  const pickerLabel = document.querySelector('label[for="picker"]');
+  const gallery = document.getElementById('gallery');
+  const status = document.getElementById('status');
+  const cols = document.getElementById('cols');
+  const highlightBtn = document.getElementById('highlight');
+  const deselectBtn = document.getElementById('deselect');
+  const refreshBtn = document.getElementById('refresh');
+  const sizeBtns = document.querySelectorAll('.size-btn');
+
+  let sizeMode = null;
+  function setSizeMode(mode) {
+    sizeMode = mode;
+    sizeBtns.forEach(b => b.classList.toggle('armed', b.dataset.size === mode));
+    document.body.classList.toggle('sizing', !!mode);
+  }
+  sizeBtns.forEach(b => {
+    b.addEventListener('click', () => {
+      setSizeMode(sizeMode === b.dataset.size ? null : b.dataset.size);
+    });
+  });
+
+  function applySizeChange(fig, mode) {
+    const cs = Number(fig.style.getPropertyValue('--col-span') || 1);
+    const rs = Number(fig.style.getPropertyValue('--row-span') || 1);
+    const maxCols = Number(cols.value);
+    let newCs = cs, newRs = rs;
+    if (mode === 'col+') newCs = Math.min(maxCols, cs + 1);
+    else if (mode === 'col-') newCs = Math.max(1, cs - 1);
+    else if (mode === 'row+') newRs = rs + 1;
+    else if (mode === 'row-') newRs = Math.max(1, rs - 1);
+    fig.style.setProperty('--col-span', newCs);
+    fig.style.setProperty('--row-span', newRs);
+  }
+
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightbox-img');
+  const lightboxClose = document.getElementById('lightbox-close');
+
+  function openLightbox(src, alt) {
+    lightboxImg.src = src;
+    lightboxImg.alt = alt || '';
+    lightbox.classList.add('open');
+  }
+  function closeLightbox() {
+    lightbox.classList.remove('open');
+    lightboxImg.src = '';
+  }
+  lightboxClose.addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+  });
+
+  const supportsDirHandle = typeof window.showDirectoryPicker === 'function';
+  let dirHandle = null;
+  const imageMap = new Map();
+
+  const applyCols = () => gallery.style.setProperty('--cols', cols.value);
+  applyCols();
+  cols.addEventListener('change', applyCols);
+
+  let dragSource = null;
+  const clearDropMarkers = () => {
+    gallery.querySelectorAll('.drop-before, .drop-after')
+      .forEach(el => el.classList.remove('drop-before', 'drop-after'));
+  };
+
+  const updateHighlightBtn = () => {
+    const n = gallery.querySelectorAll('.figure.selected').length;
+    highlightBtn.disabled = n === 0;
+    highlightBtn.textContent = n === 0 ? 'Highlight' : `Highlight (${n})`;
+    deselectBtn.disabled = n === 0;
+  };
+
+  highlightBtn.addEventListener('click', () => {
+    const selected = Array.from(gallery.querySelectorAll('.figure.selected'));
+    for (let i = selected.length - 1; i >= 0; i--) gallery.prepend(selected[i]);
+  });
+
+  deselectBtn.addEventListener('click', () => {
+    gallery.querySelectorAll('.figure.selected').forEach(f => f.classList.remove('selected'));
+    updateHighlightBtn();
+  });
+
+  function createFigure(file, relPath) {
+    const fig = document.createElement('figure');
+    fig.className = 'figure';
+    fig.draggable = true;
+    fig.dataset.path = relPath;
+    let suppressClick = false;
+    fig.addEventListener('click', (ev) => {
+      if (suppressClick) { suppressClick = false; return; }
+      if (ev.detail >= 2) return;
+      if (sizeMode) {
+        applySizeChange(fig, sizeMode);
+        return;
+      }
+      fig.classList.toggle('selected');
+      updateHighlightBtn();
+    });
+    fig.addEventListener('dblclick', () => {
+      openLightbox(img.src, relPath);
+    });
+    fig.addEventListener('dragstart', (ev) => {
+      dragSource = fig;
+      suppressClick = true;
+      fig.classList.add('dragging');
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', '');
+    });
+    fig.addEventListener('dragend', () => {
+      fig.classList.remove('dragging');
+      clearDropMarkers();
+      dragSource = null;
+    });
+    fig.addEventListener('dragover', (ev) => {
+      if (!dragSource || dragSource === fig) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      const rect = fig.getBoundingClientRect();
+      const before = (ev.clientY - rect.top) < rect.height / 2;
+      clearDropMarkers();
+      fig.classList.add(before ? 'drop-before' : 'drop-after');
+    });
+    fig.addEventListener('dragleave', () => {
+      fig.classList.remove('drop-before', 'drop-after');
+    });
+    fig.addEventListener('drop', (ev) => {
+      if (!dragSource || dragSource === fig) return;
+      ev.preventDefault();
+      const before = fig.classList.contains('drop-before');
+      clearDropMarkers();
+      fig.parentNode.insertBefore(dragSource, before ? fig : fig.nextSibling);
+    });
+
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.alt = file.name;
+    img.loading = 'lazy';
+
+    const cap = document.createElement('figcaption');
+    cap.className = 'caption';
+    cap.textContent = relPath;
+
+    fig.append(img, cap);
+    return { fig, img };
+  }
+
+  function setImg(img, file) {
+    const old = img.src;
+    img.src = URL.createObjectURL(file);
+    if (old && old.startsWith('blob:')) {
+      img.addEventListener('load', () => URL.revokeObjectURL(old), { once: true });
+    }
+  }
+
+  function applyFiles(entries, { append }) {
+    if (!append) {
+      gallery.replaceChildren();
+      imageMap.clear();
+      updateHighlightBtn();
+    }
+
+    let added = 0, updated = 0;
+    for (const { file, relPath } of entries) {
+      const existing = imageMap.get(relPath);
+      if (existing) {
+        if (file.lastModified !== existing.lastModified || file.size !== existing.size) {
+          setImg(existing.img, file);
+          existing.lastModified = file.lastModified;
+          existing.size = file.size;
+          updated++;
+        }
+      } else {
+        const { fig, img } = createFigure(file, relPath);
+        gallery.append(fig);
+        imageMap.set(relPath, { fig, img, lastModified: file.lastModified, size: file.size });
+        added++;
+      }
+    }
+
+    refreshBtn.disabled = imageMap.size === 0 && !dirHandle;
+    return { added, updated };
+  }
+
+  function reportStatus({ added, updated }, isRefresh) {
+    if (!isRefresh) {
+      status.textContent = imageMap.size === 0
+        ? 'No images found in folder'
+        : `${imageMap.size} image${imageMap.size === 1 ? '' : 's'} loaded`;
+    } else {
+      const parts = [];
+      if (added) parts.push(`${added} added`);
+      if (updated) parts.push(`${updated} updated`);
+      status.textContent = parts.length ? `Refreshed: ${parts.join(', ')}` : 'No changes';
+    }
+  }
+
+  async function walkDirHandle(handle, prefix = '') {
+    const out = [];
+    const here = prefix + handle.name + '/';
+    for await (const entry of handle.values()) {
+      if (entry.kind === 'file' && IMAGE_EXT.test(entry.name)) {
+        out.push({ entry, relPath: here + entry.name });
+      } else if (entry.kind === 'directory') {
+        out.push(...(await walkDirHandle(entry, here)));
+      }
+    }
+    return out;
+  }
+
+  async function loadFromDirHandle(handle, opts) {
+    const found = await walkDirHandle(handle);
+    found.sort((a, b) => a.relPath.localeCompare(b.relPath, undefined, { numeric: true, sensitivity: 'base' }));
+    const entries = [];
+    for (const { entry, relPath } of found) {
+      const file = await entry.getFile();
+      entries.push({ file, relPath });
+    }
+    return applyFiles(entries, opts);
+  }
+
+  function loadFromFileList(fileList, opts) {
+    const entries = Array.from(fileList)
+      .filter(f => IMAGE_EXT.test(f.name))
+      .sort((a, b) => a.webkitRelativePath.localeCompare(
+        b.webkitRelativePath, undefined, { numeric: true, sensitivity: 'base' }
+      ))
+      .map(file => ({ file, relPath: file.webkitRelativePath || file.name }));
+    return applyFiles(entries, opts);
+  }
+
+  if (supportsDirHandle) {
+    pickerLabel.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        const handle = await window.showDirectoryPicker();
+        dirHandle = handle;
+        const result = await loadFromDirHandle(handle, { append: false });
+        reportStatus(result, false);
+        refreshBtn.disabled = false;
+      } catch (err) {
+        if (err.name !== 'AbortError') status.textContent = 'Failed to open folder: ' + err.message;
+      }
+    });
+  }
+
+  picker.addEventListener('change', (e) => {
+    const isRefresh = picker.dataset.refresh === '1';
+    delete picker.dataset.refresh;
+    if (!isRefresh) dirHandle = null;
+    const result = loadFromFileList(e.target.files, { append: isRefresh });
+    reportStatus(result, isRefresh);
+    refreshBtn.disabled = imageMap.size === 0;
+  });
+
+  refreshBtn.addEventListener('click', async () => {
+    if (dirHandle) {
+      try {
+        const result = await loadFromDirHandle(dirHandle, { append: true });
+        reportStatus(result, true);
+      } catch (err) {
+        status.textContent = 'Refresh failed: ' + err.message;
+      }
+    } else {
+      status.textContent = 'Re-select the folder to refresh…';
+      picker.dataset.refresh = '1';
+      picker.click();
+    }
+  });
+</script>
+</body>
+</html>
