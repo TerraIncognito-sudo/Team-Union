@@ -1,4 +1,4 @@
-"""Loading and basic cleaning for the Steves Luxury Resort data."""
+"""Loading and basic cleaning for the Steve's Luxury Resort data."""
 from __future__ import annotations
 
 from pathlib import Path
