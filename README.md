@@ -54,6 +54,8 @@ python -m ipykernel install --user --name team-union
 
 CSV with columns `GuestID,Churned` — see `data/raw/sample_submission.csv`.
 
+## Submissions
 
-Hi everyone
-#john want to play to and is adding files for nick to del
+1) DecisionTree 0.763
+2) XGBoost 0.796
+3) Catboost with full data cleaning 0.837
