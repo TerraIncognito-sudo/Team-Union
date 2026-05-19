@@ -1,4 +1,4 @@
-"""Data loading + light cleaning for the Steve's Luxury Resort competition."""
+"""Loading and basic cleaning for the Steves Luxury Resort data."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +11,7 @@ DATA_DIR = REPO_ROOT / "data" / "raw"
 TARGET = "Churned"
 ID_COL = "GuestID"
 
-# Feature groups
+# Column groups we reuse across modules.
 SPEND_COLS = ["RoomService", "Dining", "Retail", "Spa", "Entertainment"]
 NUMERIC_COLS = ["Age", "LoyaltyPoints", "SurveyScore", "DaysSinceEmail"] + SPEND_COLS
 BOOL_COLS = ["AllInclusive", "VIP"]
@@ -24,11 +24,12 @@ CAT_COLS = [
     "ReferralSource",
 ]
 DATE_COLS = ["BookingDate"]
-RAW_TEXT_COLS = ["Room"]  # Wing/Floor/View — split in features.py
+# Room comes in as Wing/Floor/View. We split it apart in features.py.
+RAW_TEXT_COLS = ["Room"]
 
 
 def load_raw(data_dir: Path | str = DATA_DIR) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Load train, test, and sample_submission CSVs."""
+    """Read the train, test and sample submission CSVs."""
     data_dir = Path(data_dir)
     train = pd.read_csv(data_dir / "resort_train.csv")
     test = pd.read_csv(data_dir / "resort_test.csv")
@@ -37,21 +38,20 @@ def load_raw(data_dir: Path | str = DATA_DIR) -> tuple[pd.DataFrame, pd.DataFram
 
 
 def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
-    """Light cleaning: parse dates, fix dtypes. Returns a copy."""
+    """Parse the date column and tidy up string columns. Returns a copy."""
     df = df.copy()
 
-    # Parse BookingDate
     if "BookingDate" in df.columns:
         df["BookingDate"] = pd.to_datetime(df["BookingDate"], errors="coerce")
 
-    # Strip whitespace from string cols, normalize empty/"nan"
+    # Strip whitespace, turn nan and empty strings into real NaN.
     for col in CAT_COLS + RAW_TEXT_COLS:
         if col in df.columns and df[col].dtype == object:
             df[col] = (
                 df[col].astype(str).str.strip().replace({"nan": np.nan, "": np.nan})
             )
 
-    # Treat PromoCode null as a category (no promo) — done AFTER strip
+    # Treat a missing PromoCode as its own category (no promo).
     if "PromoCode" in df.columns:
         df["PromoCode"] = df["PromoCode"].fillna("NoPromo")
 
