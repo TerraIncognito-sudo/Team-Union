@@ -1,4 +1,4 @@
-"""Feature engineering for the Steve's Luxury Resort competition."""
+"""Feature engineering for the resort churn data."""
 from __future__ import annotations
 
 import numpy as np
@@ -8,7 +8,7 @@ from .data import SPEND_COLS
 
 
 def split_room(df: pd.DataFrame) -> pd.DataFrame:
-    """Split Room (Wing/Floor/View) into 3 features."""
+    """Break the Room string (Wing/Floor/View) into three columns."""
     df = df.copy()
     if "Room" not in df.columns:
         return df
@@ -22,6 +22,7 @@ def split_room(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def date_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Pull common calendar parts out of BookingDate."""
     df = df.copy()
     if "BookingDate" not in df.columns:
         return df
@@ -36,24 +37,25 @@ def date_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def spend_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Totals, ratios and log spend per category."""
     df = df.copy()
     spend = df[SPEND_COLS].fillna(0)
     df["TotalSpend"] = spend.sum(axis=1)
     df["SpendCategoriesUsed"] = (spend > 0).sum(axis=1)
 
-    # Ratios (safe div)
+    # Per-category share of total spend, safe against zero totals.
     total = df["TotalSpend"].replace(0, np.nan)
     for col in SPEND_COLS:
         df[f"{col}_Ratio"] = (spend[col] / total).fillna(0)
 
-    # Log transform spend (heavy right tails)
+    # Spend is heavily right-skewed, so log1p tends to help linear models.
     for col in SPEND_COLS + ["TotalSpend"]:
         df[f"{col}_Log"] = np.log1p(df[col].fillna(0))
     return df
 
 
 def missingness_flags(df: pd.DataFrame, cols: list[str] | None = None) -> pd.DataFrame:
-    """Add binary columns indicating null."""
+    """Add a 0/1 flag for each column that has nulls in it."""
     df = df.copy()
     if cols is None:
         cols = ["Age", "Room", "Region", "AllInclusive", "VIP", "PackageType"] + SPEND_COLS
@@ -64,18 +66,19 @@ def missingness_flags(df: pd.DataFrame, cols: list[str] | None = None) -> pd.Dat
 
 
 def domain_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Domain-driven features informed by EDA."""
+    """A few cross-features that came out of the EDA pass."""
     df = df.copy()
-    # HasAnyPromo: NoPromo gets 66.9% churn vs ~36% with promo
+    # In our EDA, guests with no promo code churned at about 66.9% vs roughly
+    # 36% for guests with any promo, so a simple flag was worth keeping.
     if "PromoCode" in df.columns:
         df["HasPromo"] = (df["PromoCode"].fillna("NoPromo") != "NoPromo").astype(float)
 
-    # Spend-implies-AllInclusive-False: AllInclusive guests usually have $0 dining
-    # Useful imputation signal, plus may catch label noise
+    # All-Inclusive guests usually report zero dining spend, so a non-zero
+    # dining value can act as an indirect signal about that flag.
     if "Dining" in df.columns:
         df["DiningPerDollar"] = (df["Dining"].fillna(0) > 0).astype(float)
 
-    # Risk segment flag: brittle but the highest-signal cohort
+    # Cohort flags for the two strongest churn segments we saw in EDA.
     if "AllInclusive" in df.columns and "Region" in df.columns:
         ai = df["AllInclusive"].fillna(0).astype(float)
         eu = (df["Region"].fillna("UNK") == "Europe").astype(float)
@@ -90,7 +93,7 @@ def domain_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_all_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply the full FE pipeline."""
+    """Run every step in the feature pipeline."""
     df = split_room(df)
     df = date_features(df)
     df = spend_features(df)
