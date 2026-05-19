@@ -1,11 +1,11 @@
-"""End-to-end baseline pipeline.
+"""First-pass baseline pipeline.
 
-Trains LogisticRegression, RandomForest, LightGBM, XGBoost, CatBoost
-with default hyperparameters and 5-fold stratified CV using macro-F1
-(the Kaggle metric). Picks the best by mean CV F1, fits on full train,
-predicts on test, and writes submissions/<model>_baseline.csv.
+Trains LogisticRegression, RandomForest, LightGBM, XGBoost and CatBoost
+with their default settings, runs 5-fold stratified CV on macro F1,
+keeps the best by mean CV score, refits on the full training set and
+writes submissions/<model>_baseline.csv.
 
-Run: python -m src.baseline
+Run with: python -m src.baseline
 """
 from __future__ import annotations
 
@@ -42,22 +42,24 @@ warnings.filterwarnings("ignore")
 
 RANDOM_STATE = 42
 N_SPLITS = 5
-SCORING = "f1_macro"  # Kaggle metric is F-Score (Macro)
+# Kaggle scores us on macro F1, so we use the same thing in CV.
+SCORING = "f1_macro"
 
 SUBMISSION_DIR = REPO_ROOT / "submissions"
 SUBMISSION_DIR.mkdir(exist_ok=True)
 
 
 def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Clean + add engineered features."""
+    """Clean the raw frame and tack on the engineered features."""
     df = basic_clean(df)
     df = add_all_features(df)
     return df
 
 
 def feature_columns(df: pd.DataFrame) -> tuple[list[str], list[str]]:
-    """Return (numeric_features, categorical_features) lists used for modeling."""
-    drop = {ID_COL, TARGET, "BookingDate", "Room"}  # raw cols replaced by FE
+    """Return (numeric_features, categorical_features) used by the models."""
+    # Raw cols that have been replaced by engineered features.
+    drop = {ID_COL, TARGET, "BookingDate", "Room"}
     numeric, categorical = [], []
     for col in df.columns:
         if col in drop:
@@ -99,13 +101,25 @@ def get_models() -> dict:
     from xgboost import XGBClassifier
     from catboost import CatBoostClassifier
 
+    # Using class_weight / scale_pos_weight where the library supports it,
+    # since the churn classes are not balanced and we are scored on macro F1.
     return {
-        "logreg": LogisticRegression(max_iter=2000, random_state=RANDOM_STATE),
+        "logreg": LogisticRegression(
+            max_iter=2000, random_state=RANDOM_STATE, class_weight="balanced"
+        ),
         "random_forest": RandomForestClassifier(
-            n_estimators=300, n_jobs=-1, random_state=RANDOM_STATE
+            n_estimators=300,
+            n_jobs=-1,
+            random_state=RANDOM_STATE,
+            class_weight="balanced",
         ),
         "lightgbm": LGBMClassifier(
-            n_estimators=500, learning_rate=0.05, random_state=RANDOM_STATE, n_jobs=-1, verbose=-1
+            n_estimators=500,
+            learning_rate=0.05,
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+            verbose=-1,
+            class_weight="balanced",
         ),
         "xgboost": XGBClassifier(
             n_estimators=500,
@@ -120,6 +134,7 @@ def get_models() -> dict:
             learning_rate=0.05,
             random_state=RANDOM_STATE,
             verbose=False,
+            auto_class_weights="Balanced",
         ),
     }
 
@@ -141,7 +156,7 @@ def cross_validate_all(
                 "cv_scores": scores.tolist(),
             }
         )
-        print(f"  {name:14s}  CV F1 = {scores.mean():.4f} ± {scores.std():.4f}")
+        print(f"  {name:14s}  CV F1 = {scores.mean():.4f} +/- {scores.std():.4f}")
     return pd.DataFrame(rows).sort_values("cv_f1_macro_mean", ascending=False).reset_index(drop=True)
 
 
@@ -188,21 +203,19 @@ def main() -> None:
     print("\nLeaderboard (CV mean F1 macro):")
     print(results.drop(columns=["cv_scores"]).to_string(index=False))
 
-    # Save CV results
     reports_dir = REPO_ROOT / "reports"
     reports_dir.mkdir(exist_ok=True)
     results.to_csv(reports_dir / "baseline_cv.csv", index=False)
     print(f"\nSaved CV table -> reports/baseline_cv.csv")
 
-    # Submit best model
+    # Refit the best model and write its submission.
     best_model = results.iloc[0]["model"]
     out = SUBMISSION_DIR / f"{best_model}_baseline.csv"
     print(f"\nFitting best model ({best_model}) on full train and predicting test...")
     fit_predict_submission(best_model, X, y, test_X, test_ids, num_cols, cat_cols, out)
     print(f"  wrote {out}")
 
-    # Also write a submission for the best of LogReg vs Boosting
-    # (so we have one non-tree-based and one tree-based)
+    # Also write a non-tree and a tree submission so we have both on hand.
     boost_models = {"lightgbm", "xgboost", "catboost", "random_forest"}
     non_tree = "logreg"
     best_tree = next(
