@@ -1,55 +1,45 @@
-# Team-Union — MMAI 869 Project
+# Team-Union, MMAI 869 Project
 
-Kaggle competition: **Steve's Luxury Resort (MMAI)** — predict guest churn using booking and on-site spending data. Metric: F-Score (Macro).
+This is our group submission for the Steve's Luxury Resort churn competition in MMAI 869. The task is binary classification on guest booking and spending data, scored with macro F1.
 
 Course repo: https://github.com/stepthom/869_course
 
-## TL;DR
+## Where we ended up
 
-| Item | Value |
-|---|---|
-| Best CV F1-macro | **0.8523** (weighted ensemble) |
-| Best solo model | CatBoost — 0.8513 |
-| Final submission | `submissions/ensemble_weighted.csv` |
-| Presentation deck | `reports/Team-Union_MMAI869_Final.pptx` |
-| EDA notebook | `notebooks/01_eda_and_modeling.ipynb` |
+Our best 5-fold CV macro F1 was 0.8523, from a weighted blend of CatBoost, LightGBM and XGBoost. The strongest single model was CatBoost at 0.8513. The final submission we sent to Kaggle is `submissions/ensemble_weighted.csv`. The slide deck lives at `reports/Team-Union_MMAI869_Final.pptx` and the main EDA is in `notebooks/01_eda_and_modeling.ipynb`.
 
-## Headline finding
+## Main thing we found in EDA
 
-**The All-Inclusive paradox:** Premium All-Inclusive guests churn at 81.9% vs 32.8% for non-AI. The All-Inclusive × Europe cohort hits **98.6% churn** (n=722).
+Guests on the All-Inclusive package churn far more often than non-AI guests (about 81.9% vs 32.8% in the training set). The effect is even stronger for All-Inclusive guests in the Europe region, where 722 rows show roughly 98.6% churn. A few features in `src/features.py` (`AI_Europe`, `AI_Adventure`, `HasPromo`) try to capture that.
 
 ## Repo layout
 
 ```
 Team-Union/
-├── data/
-│   ├── raw/             # Kaggle CSVs (gitignored)
-│   └── processed/       # Cleaned/feature-engineered (gitignored)
-├── notebooks/           # Jupyter EDA + modelling notebooks
-├── src/                 # Reusable Python modules (loaders, features, eval)
-├── submissions/         # CSV files for Kaggle (gitignored)
-├── reports/             # Final deck + figures
-├── requirements.txt
-└── README.md
+  data/
+    raw/         # Kaggle CSVs, gitignored
+    processed/   # cleaned and feature engineered, gitignored
+  notebooks/     # Jupyter EDA and modelling
+  src/           # reusable Python modules
+  submissions/   # CSVs for Kaggle, gitignored
+  reports/       # deck and figures
+  requirements.txt
+  README.md
 ```
 
 ## Setup
 
-```bash
+```
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python -m ipykernel install --user --name team-union
 ```
 
-## Workflow
+## How we ran things
 
-1. Run `notebooks/01_eda.ipynb` for data exploration.
-2. Run `notebooks/02_baseline.ipynb` for first models + first Kaggle submission.
-3. Iterate on feature engineering in `notebooks/03_features.ipynb`.
-4. Tune top models in `notebooks/04_tuning.ipynb`.
-5. Ensemble + final submission in `notebooks/05_final.ipynb`.
+We roughly followed this notebook order. First, `notebooks/01_eda.ipynb` for the exploratory pass. Then `notebooks/02_baseline.ipynb` for the first set of models and our first Kaggle submission. From there we iterated on feature engineering in `notebooks/03_features.ipynb`, tuned the top two or three models in `notebooks/04_tuning.ipynb`, and built the final ensemble and submission file in `notebooks/05_final.ipynb`.
 
 ## Submission format
 
-CSV with columns `GuestID,Churned` — see `data/raw/sample_submission.csv`.
+A CSV with columns `GuestID,Churned`. See `data/raw/sample_submission.csv` for the exact shape.
