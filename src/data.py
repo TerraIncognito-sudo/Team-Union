@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = REPO_ROOT / "data" / "raw"
+DATA_DIR = REPO_ROOT / "datasets"
+PROCESSED_DIR = REPO_ROOT / "data" / "processed"
 
 TARGET = "Churned"
 ID_COL = "GuestID"
@@ -56,6 +57,25 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
         df["PromoCode"] = df["PromoCode"].fillna("NoPromo")
 
     return df
+
+
+def data_quality_summary(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """Return column-level data quality checks for a dataframe."""
+    rows = []
+    for col in df.columns:
+        missing = int(df[col].isna().sum())
+        rows.append(
+            {
+                "dataset": name,
+                "column": col,
+                "dtype": str(df[col].dtype),
+                "rows": len(df),
+                "missing": missing,
+                "missing_pct": round(missing / len(df) * 100, 2) if len(df) else 0,
+                "unique": int(df[col].nunique(dropna=True)),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def split_xy(train: pd.DataFrame, target: str = TARGET) -> tuple[pd.DataFrame, pd.Series]:

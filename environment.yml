@@ -1,0 +1,25 @@
+name: team-union
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.13
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - plotly
+  - jupyter
+  - ipykernel
+  - tqdm
+  - joblib
+  - pip
+  - pip:
+      - lightgbm>=4.3
+      - xgboost>=2.0
+      - catboost>=1.2
+      - category_encoders>=2.6
+      - optuna>=3.6
+      - imbalanced-learn>=0.12

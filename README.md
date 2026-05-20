@@ -35,6 +35,41 @@ Team-Union/
 
 ## Setup
 
+### Anaconda on Windows
+
+This repo can be run with the Anaconda install at `C:\Users\user\anaconda3`.
+
+Run the data cleaning workflow:
+
+```powershell
+.\scripts\run_clean_data.bat
+```
+
+PowerShell script alternative:
+
+```powershell
+.\scripts\run_clean_data.ps1
+```
+
+Or call Anaconda Python directly:
+
+```powershell
+& "$env:USERPROFILE\anaconda3\python.exe" -m src.clean_data
+```
+
+Optional: create a dedicated Conda environment from the repo spec:
+
+```powershell
+& "$env:USERPROFILE\anaconda3\condabin\conda.bat" env create -f environment.yml
+& "$env:USERPROFILE\anaconda3\condabin\conda.bat" activate team-union
+```
+
+The cleaned data and reports are written to `data/processed/`.
+
+For notebooks, select the Jupyter kernel named `Python (team-union Anaconda)`.
+
+### Generic Python
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
